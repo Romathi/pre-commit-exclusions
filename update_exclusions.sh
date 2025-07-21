@@ -6,23 +6,36 @@
 
 set -e
 
-# Read your default and custom exclusions files (assumed in repo root or repo working dir)
-default_exclusions=$(cat .pre-commit-default-exclusions)
-custom_exclusions=$(cat .pre-commit-exclusions)
+# Read exclusions
+default_exclusions=$(< .pre-commit-default-exclusions)
+custom_exclusions=$(< .pre-commit-exclusions)
 
+# Add '|' if needed
 if [[ -s .pre-commit-exclusions ]]; then
+    # Custom exclusions found.
     default_exclusions="${default_exclusions}|"
+    new=$(printf '%s\n%s' "$default_exclusions" "$custom_exclusions")
+else
+    # No custom exclusions found.
+    new="$default_exclusions"
 fi
 
-new_exclusions=$(printf '%s\n%s' "$default_exclusions" "$custom_exclusions")
+# Indent with two spaces
+new=$(echo "$new" | sed 's/^/  /')
 
-# Update the exclude block in .pre-commit-config.yaml (in current repo root)
-awk -v excl="$new_exclusions" '
-  BEGIN { inside=0 }
-  /^exclude: \|/ { print; inside=1; next }
-  inside && /^# End exclusion/ { print excl; print; inside=0; next }
-  inside { next }
-  { print }
-' .pre-commit-config.yaml > .pre-commit-config.yaml.tmp && mv .pre-commit-config.yaml.tmp .pre-commit-config.yaml
+# Replace block in .pre-commit-config.yaml
+awk -v new_block="$new" '
+  BEGIN { inside = 0 }
+  /# Start exclusion/ {
+    print; print "exclude: |"
+    print new_block
+    inside = 1
+    next
+  }
+  /# End exclusion/ {
+    inside = 0
+  }
+  !inside
+' .pre-commit-config.yaml 2>/dev/null > .pre-commit-config.yaml.tmp && mv .pre-commit-config.yaml.tmp .pre-commit-config.yaml
 
 echo "✅ Updated .pre-commit-config.yaml with new exclusions."

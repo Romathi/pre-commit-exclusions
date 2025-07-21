@@ -44,8 +44,8 @@ Run the update script:
 Add the following to your `.pre-commit-config.yaml`:
 
 ```yaml
-- repo: https://github.com/Romathi/pre-commit-exclusion
-  rev: v0.1.0
+- repo: https://github.com/Romathi/pre-commit-exclusions
+  rev: v0.1.1
   hooks:
     - id: update-exclusions
 ```
