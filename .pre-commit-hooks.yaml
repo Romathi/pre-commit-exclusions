@@ -8,3 +8,4 @@
   entry: ./update_exclusions.sh
   language: script
   pass_filenames: false
+  always_run: true
