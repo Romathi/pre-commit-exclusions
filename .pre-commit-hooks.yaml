@@ -1,0 +1,12 @@
+# .pre-commit-hooks.yaml
+#
+# MIT License
+# Copyright (c) 2025 Romathi
+
+- id: update-exclusions
+  name: Update exclusions in pre-commit config
+  entry: ./update_exclusions.sh
+  language: script
+  files: ^.pre-commit-config\.yaml$
+  stages: [manual]
+  pass_filenames: false
