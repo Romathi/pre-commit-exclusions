@@ -4,9 +4,12 @@
 # MIT License
 # Copyright (c) 2025 Romathi
 
-set -e
+set -euo pipefail
 
 CONFIG_FILE=".pre-commit-config.yaml"
+DEFAULT_EXCLUSIONS_FILE=".pre-commit-default-exclusions"
+CUSTOM_EXCLUSIONS_FILE=".pre-commit-exclusions"
+TMP_FILE=$(mktemp)
 
 if ! grep -q '# Start exclude' "$CONFIG_FILE" || ! grep -q '# End exclude' "$CONFIG_FILE"; then
     echo "❌  ERROR: Markers '# Start exclude' and/or '# End exclude' not found in $CONFIG_FILE."
@@ -14,25 +17,22 @@ if ! grep -q '# Start exclude' "$CONFIG_FILE" || ! grep -q '# End exclude' "$CON
     exit 1
 fi
 
+# Read default exclusions (mandatory)
+default_exclusions=$(< "$DEFAULT_EXCLUSIONS_FILE")
 
-# Read exclusions
-default_exclusions=$(< .pre-commit-default-exclusions)
-custom_exclusions=$(< .pre-commit-exclusions)
-
-# Add '|' if needed
-if [[ -s .pre-commit-exclusions ]]; then
-    # Custom exclusions found.
+# Read custom exclusions (optional)
+if [[ -f "$CUSTOM_EXCLUSIONS_FILE" && -s "$CUSTOM_EXCLUSIONS_FILE" ]]; then
+    custom_exclusions=$(< "$CUSTOM_EXCLUSIONS_FILE")
     default_exclusions="${default_exclusions}|"
     new=$(printf '%s\n%s' "$default_exclusions" "$custom_exclusions")
 else
-    # No custom exclusions found.
     new="$default_exclusions"
 fi
 
 # Indent with two spaces
 new=$(echo "$new" | sed 's/^/  /')
 
-# Replace block in .pre-commit-config.yaml
+# Replace block using awk and write to temp file
 awk -v new_block="$new" '
     BEGIN { inside = 0 }
     /# Start exclude/ {
@@ -45,7 +45,16 @@ awk -v new_block="$new" '
         inside = 0
     }
     !inside
-' .pre-commit-config.yaml 2>/dev/null > .pre-commit-config.yaml.tmp && mv .pre-commit-config.yaml.tmp .pre-commit-config.yaml
+' "$CONFIG_FILE" 2>>/dev/null > "$TMP_FILE"
 
-echo "✅  Updated .pre-commit-config.yaml with new exclusions."
-echo "⚠️ Please rerun pre-commit (e.g. 'pre-commit run --all-files') to apply the new exclusions and avoid running hooks on excluded files."
+
+if ! cmp -s "$TMP_FILE" "$CONFIG_FILE"; then
+    mv "$TMP_FILE" "$CONFIG_FILE"
+    echo "✅  Updated .pre-commit-config.yaml with new exclusions."
+    echo "⚠️ Exclusion list changed. Rerun pre-commit to apply changes."
+    exit 99
+else
+    rm "$TMP_FILE"
+    echo "✅  Exclusions are already up to date. No changes made."
+    exit 0
+fi
