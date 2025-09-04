@@ -29,23 +29,27 @@ else
     new="$default_exclusions"
 fi
 
-# Indent with two spaces
-new=$(echo "$new" | sed 's/^/  /')
+# Prepare the new exclusion block
+new=$(printf '%s\n' "$default_exclusions" "$custom_exclusions" | sed 's/^/  /')
 
-# Replace block using awk and write to temp file
-awk -v new_block="$new" '
-    BEGIN { inside = 0 }
+# Feed awk directly with the block via a file descriptor
+awk -v block_file=<(echo "$new") '
+    BEGIN {
+        inside = 0
+        while ((getline line < block_file) > 0) {
+            block = block line "\n"
+        }
+        close(block_file)
+    }
     /# Start exclude/ {
         print; print "exclude: |"
-        print new_block
+        printf "%s", block
         inside = 1
         next
     }
-    /# End exclude/ {
-        inside = 0
-    }
+    /# End exclude/ { inside = 0 }
     !inside
-' "$CONFIG_FILE" 2>>/dev/null > "$TMP_FILE"
+' "$CONFIG_FILE" > "$TMP_FILE"
 
 
 if ! cmp -s "$TMP_FILE" "$CONFIG_FILE"; then
