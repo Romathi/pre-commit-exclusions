@@ -24,13 +24,10 @@ default_exclusions=$(< "$DEFAULT_EXCLUSIONS_FILE")
 if [[ -f "$CUSTOM_EXCLUSIONS_FILE" && -s "$CUSTOM_EXCLUSIONS_FILE" ]]; then
     custom_exclusions=$(< "$CUSTOM_EXCLUSIONS_FILE")
     default_exclusions="${default_exclusions}|"
-    new=$(printf '%s\n%s' "$default_exclusions" "$custom_exclusions")
+    new=$(printf '%s\n' "$default_exclusions" "$custom_exclusions" | sed 's/^/  /')
 else
-    new="$default_exclusions"
+    new=$(printf '%s\n' "$default_exclusions" | sed 's/^/  /')
 fi
-
-# Prepare the new exclusion block
-new=$(printf '%s\n' "$default_exclusions" "$custom_exclusions" | sed 's/^/  /')
 
 # Feed awk directly with the block via a file descriptor
 awk -v block_file=<(echo "$new") '
