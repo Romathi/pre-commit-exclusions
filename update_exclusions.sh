@@ -26,6 +26,7 @@ if [[ -f "$CUSTOM_EXCLUSIONS_FILE" && -s "$CUSTOM_EXCLUSIONS_FILE" ]]; then
     default_exclusions="${default_exclusions}|"
     new=$(printf '%s\n%s' "$default_exclusions" "$custom_exclusions")
 else
+    custom_exclusions=""
     new="$default_exclusions"
 fi
 
